@@ -1,58 +1,129 @@
-name: Build VZLinux ISO dari Prebuilt
+name: Build Minimal Linux OS
+run-name: Build OS dari bzImage + toybox 🐧
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
   build:
+    name: Merakit OS
     runs-on: ubuntu-22.04
+
     steps:
-    - name: 📥 Checkout Repo
+    - name: 📥 Checkout Repositori
       uses: actions/checkout@v4
-    - name: 🔧 Install Tools
+
+    - name: 🔧 Pasang Alat Build
       run: |
         sudo apt-get update
-        sudo apt-get install -y xorriso syslinux isolinux cpio gzip
-    - name: 📦 Siapkan Struktur ISO
+        sudo apt-get install -y --no-install-recommends \
+          genisoimage syslinux isolinux cpio gzip fakeroot
+
+    - name: 📋 Cek File Sumber
       run: |
-        mkdir -p iso/boot iso/isolinux
+        ls -lh bzImage toybox boot.img
+        echo "✅ Semua file sumber ditemukan"
+
+    - name: 📂 Siapkan Struktur ISO
+      run: |
+        mkdir -p iso/boot/isolinux iso/dev iso/proc iso/sys
         cp bzImage iso/boot/vmlinuz
-    
-        mkdir tmp_rootfs
-        cd tmp_rootfs
-        cpio -idm < ../boot.img 2>/dev/null || cp -a ../boot.img/* . 2>/dev/null || true
-        mkdir -p bin sbin dev proc sys etc/init.d
-        cp ../busybox bin/busybox
-        cd bin 
-        for i in sh init mount; do ln -sf busybox $i; done
-        cd ../..
-        find tmp_rootfs | cpio -H newc -o | gzip > iso/boot/initrd.gz
+        cp boot.img iso/boot/boot.img
+        
+        # Salin isolinux dari sistem ke direktori ISO
+        # ✅ Gunakan jalur yang benar untuk Ubuntu
+        sudo cp /usr/lib/syslinux/isolinux.bin iso/boot/isolinux/
+        sudo cp /usr/lib/syslinux/modules/bios/ldlinux.c32 iso/boot/isolinux/ || sudo cp /usr/lib/syslinux/ldlinux.c32 iso/boot/isolinux/
+        sudo cp /usr/lib/syslinux/modules/bios/libcom32.c32 iso/boot/isolinux/ || sudo cp /usr/lib/syslinux/libcom32.c32 iso/boot/isolinux/
+        sudo cp /usr/lib/syslinux/modules/bios/libutil.c32 iso/boot/isolinux/ || sudo cp /usr/lib/syslinux/libutil.c32 iso/boot/isolinux/
+        echo "✅ File isolinux disalin ke struktur ISO"
 
-    - name: ⚙️ Buat Config Isolinux
+    - name: 🧩 Buat Initramfs
       run: |
-        cat > iso/isolinux/isolinux.cfg << 'EOF'
-        DEFAULT linux
-        TIMEOUT 50
-        LABEL linux
-        MENU LABEL Boot VZLinux
-        KERNEL /boot/vmlinuz
-        APPEND initrd=/boot/initrd.gz root=/dev/ram0 quiet
+        mkdir -p initramfs/{bin,sbin,etc,home,root,dev,proc,sys,usr/bin,usr/sbin,lib,lib64}
+        cd initramfs
+        
+        cp ../toybox bin/toybox
+        chmod +x bin/toybox
+        
+        for cmd in $(./bin/toybox --list); do
+          ln -sf toybox bin/$cmd
+        done
+        
+        cat > init << 'EOF'
+        #!/bin/sh
+        export PATH=/bin:/sbin:/usr/bin:/usr/sbin
+        mount -t proc proc /proc
+        mount -t sysfs sysfs /sys
+        mount -t devtmpfs devtmpfs /dev
+
+        echo ""
+        echo "  ██████╗ ██╗   ██╗███████╗██╗     ██╗  ██╗"
+        echo "  ██╔══██╗██║   ██║██╔════╝██║     ██║ ██╔╝"
+        echo "  ██████╔╝██║   ██║█████╗  ██║     █████╔╝ "
+        echo "  ██╔═══╝ ██║   ██║██╔══╝  ██║     ██╔═██╗ "
+        echo "  ██║     ╚██████╔╝███████╗███████╗██║  ██╗"
+        echo "  ╚═╝      ╚═════╝ ╚══════╝╚══════╝╚═╝  ╚═╝"
+        echo ""
+        echo "  Minimal Linux OS — Berhasil Boot! 🎉"
+        echo ""
+        exec /bin/sh
         EOF
-        cp /usr/lib/syslinux/isolinux.bin iso/isolinux/
-        cp /usr/lib/syslinux/modules/bios/ldlinux.c32 iso/isolinux/
+        chmod +x init
+        
+        cd ..
+        echo "✅ Struktur initramfs selesai"
 
-    - name: 💿 Build ISO
+    - name: 📦 Pack Initramfs → initramfs.gz
       run: |
-        xorriso -as mkisofs \
-        -o VZLinux.iso \
-        -b isolinux/isolinux.bin \
-        -c isolinux/boot.cat \
-        -no-emul-boot -boot-load-size 4 -boot-info-table \
-        iso/
-    - name: 📤 Upload ISO
+        cd initramfs
+        fakeroot sh -c "find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../iso/boot/initramfs.gz"
+        cd ..
+        ls -lh iso/boot/initramfs.gz
+        echo "✅ Initramfs dibuat"
+
+    - name: ⚙️ Konfigurasi Bootloader (isolinux.cfg) — FIXED
+      run: |
+        cat > iso/boot/isolinux/isolinux.cfg << 'EOF'
+        DEFAULT linux
+        LABEL linux
+        SAY Booting Minimal Linux OS...
+        KERNEL /boot/vmlinuz
+        APPEND initrd=/boot/boot.img initrd=/boot/initramfs.gz rw quiet console=tty0
+        EOF
+        cat iso/boot/isolinux/isolinux.cfg
+        # ✅ BARIS CP YANG SALAH DIHAPUS DI SINI!
+        echo "✅ Konfigurasi isolinux.cfg selesai"
+
+    - name: 💿 Buat ISO Bootable
+      run: |
+        cd iso
+        genisoimage \
+          -o ../Minimal-Linux-OS.iso \
+          -J -l -V "MINIMAL_OS" \
+          -no-emul-boot \
+          -boot-load-size 4 \
+          -boot-info-table \
+          -b boot/isolinux/isolinux.bin \
+          -c boot/isolinux/boot.cat \
+          -R -r -T .
+        cd ..
+        ls -lh Minimal-Linux-OS.iso
+        echo "✅ ISO berhasil dibuat!"
+
+    - name: 📤 Upload ISO Hasil
       uses: actions/upload-artifact@v4
       with:
-        name: VZLinux-Prebuilt
-        path: VZLinux.iso
+        name: Minimal-Linux-OS
+        path: Minimal-Linux-OS.iso
+        retention-days: 30
+
+    - name: 📊 Ringkasan
+      run: |
+        echo "✅ Build Selesai!"
+        echo "📦 File ISO: Minimal-Linux-OS.iso"
+        echo "🖥️ Kernel: bzImage"
+        echo "🔧 Userland: Toybox"
+        echo "💾 Ukuran: $(du -h Minimal-Linux-OS.iso | cut -f1)"
