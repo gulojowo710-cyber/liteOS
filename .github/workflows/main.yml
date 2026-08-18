@@ -14,7 +14,8 @@ jobs:
 
     - name: 🔧 Install Tools
       run: |
-        sudo apt-get update && sudo apt-get install -y xorriso syslinux-common syslinux-utils cpio gzip
+        sudo apt-get update
+        sudo apt-get install -y xorriso syslinux-common syslinux-utils cpio gzip
 
     - name: 📦 Siapkan Struktur ISO
       run: |
@@ -27,9 +28,7 @@ jobs:
         mkdir -p bin sbin dev proc sys etc/init.d
         cp ../busybox bin/busybox
         cd bin 
-        ln -sf busybox sh
-        ln -sf busybox init
-        ln -sf busybox mount
+        for i in sh init mount; do ln -sf busybox $i; done
         cd ../..
         find tmp_rootfs | cpio -H newc -o | gzip > iso/boot/initrd.gz
 
@@ -43,17 +42,17 @@ jobs:
         KERNEL /boot/vmlinuz
         APPEND initrd=/boot/initrd.gz root=/dev/ram0 quiet
         EOF
-        cp /usr/lib/ISOLINUX/isolinux.bin iso/isolinux/
+        cp /usr/lib/syslinux/isolinux.bin iso/isolinux/
         cp /usr/lib/syslinux/modules/bios/ldlinux.c32 iso/isolinux/
+
     - name: 💿 Build ISO
       run: |
         xorriso -as mkisofs \
-          -o VZLinux.iso \
-          -b isolinux/isolinux.bin \
-          -c isolinux/boot.cat \
-          -no-emul-boot -boot-load-size 4 -boot-info-table \
-          iso/
-
+        -o VZLinux.iso \
+        -b isolinux/isolinux.bin \
+        -c isolinux/boot.cat \
+        -no-emul-boot -boot-load-size 4 -boot-info-table \
+        iso/
     - name: 📤 Upload ISO
       uses: actions/upload-artifact@v4
       with:
