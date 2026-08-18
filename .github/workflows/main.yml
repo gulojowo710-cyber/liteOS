@@ -24,16 +24,16 @@ jobs:
         # 1. Copy Kernel
         cp bzImage iso/boot/vmlinuz
         
-        # 2. Unpack boot.img + masukin toybox
+        # 2. Unpack boot.img + masukin busybox
         mkdir tmp_rootfs
         cd tmp_rootfs
         gzip -dc ../boot.img | cpio -idm 2>/dev/null || true
         mkdir -p bin sbin dev proc sys etc/init.d
-        cp ../toybox bin/toybox
+        cp ../busybox bin/busybox
         cd bin 
-        ln -sf toybox sh
-        ln -sf toybox init
-        ln -sf toybox mount
+        ln -sf busybox sh
+        ln -sf busybox init
+        ln -sf busybox mount
         cd ../..
         find tmp_rootfs | cpio -H newc -o | gzip > iso/boot/initrd.gz
 
