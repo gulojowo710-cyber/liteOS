@@ -32,12 +32,13 @@ jobs:
         cp bzImage iso/boot/vmlinuz
         cp boot.img iso/boot/boot.img
         
-        # Salin isolinux dari sistem ke direktori ISO
-        # ✅ Gunakan jalur yang benar untuk Ubuntu
-        sudo cp /usr/lib/syslinux/isolinux.bin iso/boot/isolinux/
-        sudo cp /usr/lib/syslinux/modules/bios/ldlinux.c32 iso/boot/isolinux/ || sudo cp /usr/lib/syslinux/ldlinux.c32 iso/boot/isolinux/
-        sudo cp /usr/lib/syslinux/modules/bios/libcom32.c32 iso/boot/isolinux/ || sudo cp /usr/lib/syslinux/libcom32.c32 iso/boot/isolinux/
-        sudo cp /usr/lib/syslinux/modules/bios/libutil.c32 iso/boot/isolinux/ || sudo cp /usr/lib/syslinux/libutil.c32 iso/boot/isolinux/
+        # ✅ PERBAIKAN: Jalur file isolinux yang benar di Ubuntu 22.04
+        sudo cp /usr/lib/syslinux/bios/isolinux.bin iso/boot/isolinux/
+        sudo cp /usr/lib/syslinux/bios/ldlinux.c32 iso/boot/isolinux/
+        sudo cp /usr/lib/syslinux/bios/libcom32.c32 iso/boot/isolinux/
+        sudo cp /usr/lib/syslinux/bios/libutil.c32 iso/boot/isolinux/
+        sudo cp /usr/lib/syslinux/bios/libmenu.c32 iso/boot/isolinux/ 2>/dev/null || true
+        
         echo "✅ File isolinux disalin ke struktur ISO"
 
     - name: 🧩 Buat Initramfs
