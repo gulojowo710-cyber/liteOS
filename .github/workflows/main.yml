@@ -11,12 +11,10 @@ jobs:
     steps:
     - name: 📥 Checkout Repo
       uses: actions/checkout@v4
-
     - name: 🔧 Install Tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y xorriso syslinux-common syslinux-utils cpio gzip
-
+        sudo apt-get install -y xorriso syslinux isolinux cpio gzip
     - name: 📦 Siapkan Struktur ISO
       run: |
         mkdir -p iso/boot iso/isolinux
