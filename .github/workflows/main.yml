@@ -14,20 +14,16 @@ jobs:
 
     - name: 🔧 Install Tools
       run: |
-        sudo apt-get update
-        sudo apt-get install -y xorriso syslinux-utils cpio gzip
+        sudo apt-get update && sudo apt-get install -y xorriso syslinux-common syslinux-utils cpio gzip
 
     - name: 📦 Siapkan Struktur ISO
       run: |
         mkdir -p iso/boot iso/isolinux
-        
-        # 1. Copy Kernel
         cp bzImage iso/boot/vmlinuz
-        
-        # 2. Unpack boot.img + masukin busybox
+    
         mkdir tmp_rootfs
         cd tmp_rootfs
-        gzip -dc ../boot.img | cpio -idm 2>/dev/null || true
+        cpio -idm < ../boot.img 2>/dev/null || cp -a ../boot.img/* . 2>/dev/null || true
         mkdir -p bin sbin dev proc sys etc/init.d
         cp ../busybox bin/busybox
         cd bin 
@@ -42,16 +38,13 @@ jobs:
         cat > iso/isolinux/isolinux.cfg << 'EOF'
         DEFAULT linux
         TIMEOUT 50
-        PROMPT 1
-        
         LABEL linux
-          MENU LABEL Boot VZLinux
-          KERNEL /boot/vmlinuz
-          APPEND initrd=/boot/initrd.gz root=/dev/ram0 quiet
+        MENU LABEL Boot VZLinux
+        KERNEL /boot/vmlinuz
+        APPEND initrd=/boot/initrd.gz root=/dev/ram0 quiet
         EOF
-        cp /usr/lib/syslinux/modules/bios/isolinux.bin iso/isolinux/
+        cp /usr/lib/ISOLINUX/isolinux.bin iso/isolinux/
         cp /usr/lib/syslinux/modules/bios/ldlinux.c32 iso/isolinux/
-
     - name: 💿 Build ISO
       run: |
         xorriso -as mkisofs \
