@@ -1,0 +1,68 @@
+name: Build VZLinux ISO dari Prebuilt
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+    - name: 📥 Checkout Repo
+      uses: actions/checkout@v4
+
+    - name: 🔧 Install Tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xorriso syslinux-utils cpio gzip
+
+    - name: 📦 Siapkan Struktur ISO
+      run: |
+        mkdir -p iso/boot iso/isolinux
+        
+        # 1. Copy Kernel
+        cp bzImage iso/boot/vmlinuz
+        
+        # 2. Unpack boot.img + masukin toybox
+        mkdir tmp_rootfs
+        cd tmp_rootfs
+        gzip -dc ../boot.img | cpio -idm 2>/dev/null || true
+        mkdir -p bin sbin dev proc sys etc/init.d
+        cp ../toybox bin/toybox
+        cd bin 
+        ln -sf toybox sh
+        ln -sf toybox init
+        ln -sf toybox mount
+        cd ../..
+        find tmp_rootfs | cpio -H newc -o | gzip > iso/boot/initrd.gz
+
+    - name: ⚙️ Buat Config Isolinux
+      run: |
+        cat > iso/isolinux/isolinux.cfg << 'EOF'
+        DEFAULT linux
+        TIMEOUT 50
+        PROMPT 1
+        
+        LABEL linux
+          MENU LABEL Boot VZLinux
+          KERNEL /boot/vmlinuz
+          APPEND initrd=/boot/initrd.gz root=/dev/ram0 quiet
+        EOF
+        cp /usr/lib/syslinux/modules/bios/isolinux.bin iso/isolinux/
+        cp /usr/lib/syslinux/modules/bios/ldlinux.c32 iso/isolinux/
+
+    - name: 💿 Build ISO
+      run: |
+        xorriso -as mkisofs \
+          -o VZLinux.iso \
+          -b isolinux/isolinux.bin \
+          -c isolinux/boot.cat \
+          -no-emul-boot -boot-load-size 4 -boot-info-table \
+          iso/
+
+    - name: 📤 Upload ISO
+      uses: actions/upload-artifact@v4
+      with:
+        name: VZLinux-Prebuilt
+        path: VZLinux.iso
