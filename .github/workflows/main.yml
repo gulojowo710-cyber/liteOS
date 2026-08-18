@@ -1,5 +1,5 @@
 name: Build Minimal Linux OS
-run-name: Build OS dari bzImage + toybox 🐧
+run-name: Build OS dari bzImage + busybox 🐧
 
 on:
   push:
@@ -23,7 +23,7 @@ jobs:
 
     - name: 📋 Cek File Sumber
       run: |
-        ls -lh bzImage toybox boot.img
+        ls -lh bzImage busybox boot.img
         echo "✅ Semua file sumber ditemukan"
 
     - name: 📂 Siapkan Struktur ISO
@@ -45,11 +45,11 @@ jobs:
         mkdir -p initramfs/{bin,sbin,etc,home,root,dev,proc,sys,usr/bin,usr/sbin,lib,lib64}
         cd initramfs
         
-        cp ../toybox bin/toybox
-        chmod +x bin/toybox
+        cp ../busybox bin/busybox
+        chmod +x bin/busybox
         
-        for cmd in $(./bin/toybox --list); do
-          ln -sf toybox bin/$cmd
+        for cmd in $(./bin/busybox --list); do
+          ln -sf busybox bin/$cmd
         done
         
         cat > init << 'EOF'
@@ -125,5 +125,5 @@ jobs:
         echo "✅ Build Selesai!"
         echo "📦 File ISO: Minimal-Linux-OS.iso"
         echo "🖥️ Kernel: bzImage"
-        echo "🔧 Userland: Toybox"
+        echo "🔧 Userland: Busybox"
         echo "💾 Ukuran: $(du -h Minimal-Linux-OS.iso | cut -f1)"
