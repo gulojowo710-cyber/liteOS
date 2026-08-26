@@ -32,15 +32,7 @@ jobs:
         cp bzImage iso/boot/vmlinuz
         cp boot.img iso/boot/boot.img
         
-        # ✅ PERBAIKAN: Jalur file isolinux yang benar di Ubuntu 22.04
-        sudo cp /usr/lib/syslinux/bios/isolinux.bin iso/boot/isolinux/
-        sudo cp /usr/lib/syslinux/bios/ldlinux.c32 iso/boot/isolinux/
-        sudo cp /usr/lib/syslinux/bios/libcom32.c32 iso/boot/isolinux/
-        sudo cp /usr/lib/syslinux/bios/libutil.c32 iso/boot/isolinux/
-        sudo cp /usr/lib/syslinux/bios/libmenu.c32 iso/boot/isolinux/ 2>/dev/null || true
         
-        echo "✅ File isolinux disalin ke struktur ISO"
-
     - name: 🧩 Buat Initramfs
       run: |
         mkdir -p initramfs/{bin,sbin,etc,home,root,dev,proc,sys,usr/bin,usr/sbin,lib,lib64}
